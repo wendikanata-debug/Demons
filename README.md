@@ -9,7 +9,14 @@ Android Archive (AAR) library dengan paket `com.demons.premium`.
 - **Java Version**: Java 17
 - **Requirements**: No root required
 
-## Project Structure
+## Supported Features
+
+### Social Login
+- ✅ Facebook Login
+- ✅ Twitter (X) Login
+- ✅ Google Play Services Integration
+
+### Project Structure
 
 ```
 Demons/
@@ -22,6 +29,14 @@ Demons/
 │   │   ├── main/
 │   │   │   ├── java/
 │   │   │   │   └── com/demons/premium/
+│   │   │   │       ├── DemonsPremium.java
+│   │   │   │       ├── auth/
+│   │   │   │       │   ├── AuthManager.java
+│   │   │   │       │   ├── FacebookAuth.java
+│   │   │   │       │   ├── TwitterAuth.java
+│   │   │   │       │   └── GooglePlayAuth.java
+│   │   │   │       └── models/
+│   │   │   │           └── User.java
 │   │   │   ├── res/
 │   │   │   └── AndroidManifest.xml
 │   │   └── test/
@@ -34,6 +49,8 @@ Demons/
 ## Features
 
 - Core functionality untuk Demons Premium
+- Social Media Authentication (Facebook, Twitter)
+- Google Play Services Integration
 - Resource handling
 - Android integration
 - 64-bit architecture support
@@ -62,25 +79,62 @@ AAR file location:
 demons-premium/build/outputs/aar/demons-premium-release.aar
 ```
 
-## Usage
+## Usage - Facebook Login
 
-1. Copy `demons-premium-release.aar` ke folder `libs/` project Anda
-2. Tambahkan ke `build.gradle`:
-```groovy
-repositories {
-    flatDir {
-        dirs 'libs'
+```java
+FacebookAuth facebookAuth = new FacebookAuth(context);
+facebookAuth.login(new AuthCallback() {
+    @Override
+    public void onSuccess(User user) {
+        // Handle success
     }
-}
+    
+    @Override
+    public void onError(String error) {
+        // Handle error
+    }
+});
+```
 
-dependencies {
-    implementation(name: 'demons-premium-release', ext: 'aar')
-}
+## Usage - Twitter Login
+
+```java
+TwitterAuth twitterAuth = new TwitterAuth(context);
+twitterAuth.login(new AuthCallback() {
+    @Override
+    public void onSuccess(User user) {
+        // Handle success
+    }
+    
+    @Override
+    public void onError(String error) {
+        // Handle error
+    }
+});
+```
+
+## Usage - Google Play Services
+
+```java
+GooglePlayAuth googlePlayAuth = new GooglePlayAuth(context);
+googlePlayAuth.initialize(new AuthCallback() {
+    @Override
+    public void onSuccess(User user) {
+        // Google Play Services ready
+    }
+    
+    @Override
+    public void onError(String error) {
+        // Handle error
+    }
+});
 ```
 
 ## Package Name
 
 - **Base Package**: `com.demons.premium`
+- **Auth Package**: `com.demons.premium.auth`
+- **Models Package**: `com.demons.premium.models`
 
 ## Versioning
 
