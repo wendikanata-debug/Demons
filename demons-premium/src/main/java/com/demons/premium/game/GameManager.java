@@ -4,9 +4,10 @@ import android.content.Context;
 import com.demons.premium.game.models.GamePlayer;
 import com.demons.premium.security.SecurityManager;
 import com.demons.premium.security.SecurityConfig;
+import com.demons.premium.security.antitamper.AntiReversingManager;
 
 /**
- * GameManager - Updated dengan Security Integration
+ * GameManager - Final Version dengan Security + Anti-Reversing
  */
 public class GameManager {
     private static final String TAG = "GameManager";
@@ -27,6 +28,10 @@ public class GameManager {
     private SecurityManager securityManager;
     private boolean securityValidated;
     
+    // Anti-Reversing
+    private AntiReversingManager antiReversingManager;
+    private boolean antiReversingValidated;
+    
     /**
      * Get singleton instance
      */
@@ -44,11 +49,12 @@ public class GameManager {
         this.context = context.getApplicationContext();
         this.isInitialized = false;
         this.securityValidated = false;
+        this.antiReversingValidated = false;
         initializeComponents();
     }
     
     /**
-     * Initialize all game components
+     * Initialize all components
      */
     private void initializeComponents() {
         this.gameAnalytics = new GameAnalytics();
@@ -58,19 +64,20 @@ public class GameManager {
         this.gameMultiplayer = new GameMultiplayer();
         this.gameAds = new GameAds();
         this.securityManager = SecurityManager.getInstance(context);
+        this.antiReversingManager = AntiReversingManager.getInstance(context);
     }
     
     /**
-     * Initialize GameManager dengan Security
+     * Initialize GameManager dengan Security + Anti-Reversing
      */
-    public void initialize(SecurityConfig securityConfig, GameCallback callback) {
+    public void initialize(SecurityConfig securityConfig, String expectedAPKSignature, GameCallback callback) {
         try {
-            // Initialize security first
+            android.util.Log.d(TAG, "\n==================== INITIALIZATION START ====================");
+            
+            // Step 1: Validate Security
+            android.util.Log.d(TAG, "\nStep 1: Security Validation");
             securityManager.initialize(securityConfig);
             
-            android.util.Log.d(TAG, "Running security validation...");
-            
-            // Validate security
             if (!securityManager.validate()) {
                 String error = "Security validation failed: " + securityManager.getSecurityError();
                 android.util.Log.e(TAG, error);
@@ -79,13 +86,28 @@ public class GameManager {
             }
             
             securityValidated = true;
-            android.util.Log.d(TAG, "Security validation passed!");
+            android.util.Log.d(TAG, "✓ Security validation passed!");
             
-            // Initialize game features
+            // Step 2: Validate Anti-Reversing
+            android.util.Log.d(TAG, "\nStep 2: Anti-Reversing Protection");
+            
+            if (!antiReversingManager.runFullProtection(expectedAPKSignature)) {
+                String error = "Anti-reversing protection failed: " + antiReversingManager.getProtectionError();
+                android.util.Log.e(TAG, error);
+                if (callback != null) callback.onError(error);
+                return;
+            }
+            
+            antiReversingValidated = true;
+            android.util.Log.d(TAG, "✓ Anti-reversing protection passed!");
+            
+            // Step 3: Initialize game features
+            android.util.Log.d(TAG, "\nStep 3: Initializing Game Features");
             gameBilling.initialize(null);
             
             isInitialized = true;
-            android.util.Log.d(TAG, "GameManager initialized successfully");
+            android.util.Log.d(TAG, "\n✓ GameManager initialized successfully!");
+            android.util.Log.d(TAG, "==================== INITIALIZATION COMPLETE ====================");
             
             if (callback != null) callback.onSuccess();
         } catch (Exception e) {
@@ -96,10 +118,14 @@ public class GameManager {
     }
     
     /**
-     * Check if security is validated
+     * Check if security and protection are validated
      */
     public boolean isSecurityValidated() {
         return securityValidated;
+    }
+    
+    public boolean isAntiReversingValidated() {
+        return antiReversingValidated;
     }
     
     /**
@@ -110,40 +136,54 @@ public class GameManager {
     }
     
     /**
+     * Get anti-reversing manager
+     */
+    public AntiReversingManager getAntiReversingManager() {
+        return antiReversingManager;
+    }
+    
+    /**
      * Get security status
      */
     public String getSecurityStatus() {
         return securityManager.getSecurityStatus();
     }
     
+    /**
+     * Get protection status
+     */
+    public String getProtectionStatus() {
+        return antiReversingManager.getProtectionStatus();
+    }
+    
     // Getters for game features
     public GameAnalytics getGameAnalytics() { 
-        checkSecurity();
+        checkValidation();
         return gameAnalytics; 
     }
     
     public GameBilling getGameBilling() { 
-        checkSecurity();
+        checkValidation();
         return gameBilling; 
     }
     
     public GameLeaderboard getGameLeaderboard() { 
-        checkSecurity();
+        checkValidation();
         return gameLeaderboard; 
     }
     
     public GameAchievement getGameAchievement() { 
-        checkSecurity();
+        checkValidation();
         return gameAchievement; 
     }
     
     public GameMultiplayer getGameMultiplayer() { 
-        checkSecurity();
+        checkValidation();
         return gameMultiplayer; 
     }
     
     public GameAds getGameAds() { 
-        checkSecurity();
+        checkValidation();
         return gameAds; 
     }
     
@@ -153,12 +193,17 @@ public class GameManager {
     public boolean isInitialized() { return isInitialized; }
     
     /**
-     * Check if security is valid sebelum akses features
+     * Check if all validations passed
      */
-    private void checkSecurity() {
+    private void checkValidation() {
         if (!securityValidated) {
             throw new SecurityException("Security validation required! \nError: " + 
                 securityManager.getSecurityError());
+        }
+        
+        if (!antiReversingValidated) {
+            throw new SecurityException("Anti-reversing protection required! \nError: " + 
+                antiReversingManager.getProtectionError());
         }
     }
     
@@ -172,6 +217,7 @@ public class GameManager {
         gameAds.hideAllAds();
         isInitialized = false;
         securityValidated = false;
+        antiReversingValidated = false;
         android.util.Log.d(TAG, "GameManager shutdown");
     }
     
@@ -182,7 +228,9 @@ public class GameManager {
         return "GameManager{" +
                 "initialized=" + isInitialized +
                 ", securityValidated=" + securityValidated +
-                ", securityStatus='" + securityManager.getSecurityError() + '\'' +
+                ", antiReversingValidated=" + antiReversingValidated +
+                ", security='" + securityManager.getSecurityError() + '\'' +
+                ", protection='" + antiReversingManager.getProtectionError() + '\'' +
                 '}';
     }
     
