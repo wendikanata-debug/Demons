@@ -2,9 +2,11 @@ package com.demons.premium.game;
 
 import android.content.Context;
 import com.demons.premium.game.models.GamePlayer;
+import com.demons.premium.security.SecurityManager;
+import com.demons.premium.security.SecurityConfig;
 
 /**
- * GameManager - Central manager untuk semua game features
+ * GameManager - Updated dengan Security Integration
  */
 public class GameManager {
     private static final String TAG = "GameManager";
@@ -20,6 +22,10 @@ public class GameManager {
     
     private GamePlayer currentPlayer;
     private boolean isInitialized;
+    
+    // Security
+    private SecurityManager securityManager;
+    private boolean securityValidated;
     
     /**
      * Get singleton instance
@@ -37,6 +43,7 @@ public class GameManager {
     private GameManager(Context context) {
         this.context = context.getApplicationContext();
         this.isInitialized = false;
+        this.securityValidated = false;
         initializeComponents();
     }
     
@@ -50,41 +57,110 @@ public class GameManager {
         this.gameAchievement = new GameAchievement();
         this.gameMultiplayer = new GameMultiplayer();
         this.gameAds = new GameAds();
+        this.securityManager = SecurityManager.getInstance(context);
     }
     
     /**
-     * Initialize game manager
+     * Initialize GameManager dengan Security
      */
-    public void initialize(GameCallback callback) {
+    public void initialize(SecurityConfig securityConfig, GameCallback callback) {
         try {
-            // Initialize Firebase
-            // FirebaseApp.initializeApp(context);
+            // Initialize security first
+            securityManager.initialize(securityConfig);
             
-            // Initialize Billing
+            android.util.Log.d(TAG, "Running security validation...");
+            
+            // Validate security
+            if (!securityManager.validate()) {
+                String error = "Security validation failed: " + securityManager.getSecurityError();
+                android.util.Log.e(TAG, error);
+                if (callback != null) callback.onError(error);
+                return;
+            }
+            
+            securityValidated = true;
+            android.util.Log.d(TAG, "Security validation passed!");
+            
+            // Initialize game features
             gameBilling.initialize(null);
             
             isInitialized = true;
-            android.util.Log.d(TAG, "GameManager initialized");
+            android.util.Log.d(TAG, "GameManager initialized successfully");
             
             if (callback != null) callback.onSuccess();
         } catch (Exception e) {
-            android.util.Log.e(TAG, "Initialization failed: " + e.getMessage());
-            if (callback != null) callback.onError(e.getMessage());
+            String error = "Initialization failed: " + e.getMessage();
+            android.util.Log.e(TAG, error);
+            if (callback != null) callback.onError(error);
         }
     }
     
-    // Getters
-    public GameAnalytics getGameAnalytics() { return gameAnalytics; }
-    public GameBilling getGameBilling() { return gameBilling; }
-    public GameLeaderboard getGameLeaderboard() { return gameLeaderboard; }
-    public GameAchievement getGameAchievement() { return gameAchievement; }
-    public GameMultiplayer getGameMultiplayer() { return gameMultiplayer; }
-    public GameAds getGameAds() { return gameAds; }
+    /**
+     * Check if security is validated
+     */
+    public boolean isSecurityValidated() {
+        return securityValidated;
+    }
+    
+    /**
+     * Get security manager
+     */
+    public SecurityManager getSecurityManager() {
+        return securityManager;
+    }
+    
+    /**
+     * Get security status
+     */
+    public String getSecurityStatus() {
+        return securityManager.getSecurityStatus();
+    }
+    
+    // Getters for game features
+    public GameAnalytics getGameAnalytics() { 
+        checkSecurity();
+        return gameAnalytics; 
+    }
+    
+    public GameBilling getGameBilling() { 
+        checkSecurity();
+        return gameBilling; 
+    }
+    
+    public GameLeaderboard getGameLeaderboard() { 
+        checkSecurity();
+        return gameLeaderboard; 
+    }
+    
+    public GameAchievement getGameAchievement() { 
+        checkSecurity();
+        return gameAchievement; 
+    }
+    
+    public GameMultiplayer getGameMultiplayer() { 
+        checkSecurity();
+        return gameMultiplayer; 
+    }
+    
+    public GameAds getGameAds() { 
+        checkSecurity();
+        return gameAds; 
+    }
     
     public GamePlayer getCurrentPlayer() { return currentPlayer; }
     public void setCurrentPlayer(GamePlayer player) { this.currentPlayer = player; }
     
     public boolean isInitialized() { return isInitialized; }
+    
+    /**
+     * Check if security is valid sebelum akses features
+     */
+    private void checkSecurity() {
+        if (!securityValidated) {
+            throw new SecurityException("Security validation required! \nError: " + 
+                securityManager.getSecurityError());
+        }
+    }
     
     /**
      * Shutdown game manager
@@ -95,18 +171,18 @@ public class GameManager {
             gameMultiplayer.getCurrentRoom().getRoomId() : null, null);
         gameAds.hideAllAds();
         isInitialized = false;
+        securityValidated = false;
         android.util.Log.d(TAG, "GameManager shutdown");
     }
     
     /**
-     * Get initialization status
+     * Get full status
      */
     public String getStatus() {
         return "GameManager{" +
                 "initialized=" + isInitialized +
-                ", analyticsEnabled=true" +
-                ", billingReady=" + gameBilling +
-                ", multiplayerConnected=" + gameMultiplayer +
+                ", securityValidated=" + securityValidated +
+                ", securityStatus='" + securityManager.getSecurityError() + '\'' +
                 '}';
     }
     
